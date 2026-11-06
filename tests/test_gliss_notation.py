@@ -171,10 +171,11 @@ class GlissDetectionTests(unittest.TestCase):
         runs, rejected = found(notes)
         self.assertEqual((runs, rejected), ([], 1))
 
-    def test_off_by_default_and_the_output_is_unchanged(self):
-        self.assertFalse(Config().auto_glissandi)
-        self.assertEqual(engrave()[0], engrave(auto=False)[0])
-        self.assertNotIn('glissando', engrave()[0])
+    def test_on_by_default(self):
+        self.assertTrue(Config().auto_glissandi)
+
+    def test_it_can_be_turned_off(self):
+        self.assertNotIn('glissando', engrave(auto=False)[0])
 
     def test_auto_writes_a_line_and_asks_in_the_review(self):
         xml, _ = engrave(auto=True)

@@ -123,7 +123,7 @@ class Config:
 
 
     # ---- glissandi --------------------------------------------------------------
-    auto_glissandi: bool = False       # write fast runs on one scale as glissando lines (gliss.find)
+    auto_glissandi: bool = True        # write fast runs on one scale as glissando lines (gliss.find)
     glissandi: list = field(default_factory=list)   # [{"notes": [[seconds, pitch], ...], "hand", "scale"}], see gliss.py
 
     def __post_init__(self):

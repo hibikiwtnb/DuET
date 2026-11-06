@@ -52,7 +52,7 @@ def main():
         parser.add_argument('--auto-' + name, action=argparse.BooleanOptionalAction,
                             default=None, help="Override automatic " + name + " (default: enabled)")
     parser.add_argument('--auto-glissandi', action=argparse.BooleanOptionalAction, default=None,
-                        help='Write fast runs on one scale as glissando lines (default: disabled)')
+                        help='Write fast runs on one scale as glissando lines (default: enabled)')
     parser.add_argument('--glissandi', type=Path,
                         help='JSON file of runs to write as glissando lines: {"runs": [{"hand": "right", '
                              '"notes": [{"seconds": 1.5, "pitch": 93}, ...]}]}')

@@ -2,7 +2,7 @@
 
 The model gives every input note its own score position, which turns a glissando into a crowded run of 32nds, and it
 has no way to say "glissando". The notes of a run come from the caller (Config.glissandi: performance seconds and
-pitches) or from the performance itself (Config.auto_glissandi, off by default, see find). Other notes change only when
+pitches) or from the performance itself (Config.auto_glissandi, see find). Other notes change only when
 struck during the line: they go back to where they were played and become the second voice of the staff.
 
 Detection cannot use note length: the pedal carries a run and the chords it crosses to the same end. A wrong detection

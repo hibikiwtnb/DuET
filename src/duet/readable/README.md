@@ -44,14 +44,15 @@ or dictionary through `transcribe(..., engraving_config=...)` and
 
 ## Glissandi
 
-The model writes a glissando as a crowded run of 32nds that overruns the bar. `--auto-glissandi` (off by default) finds
+The model writes a glissando as a crowded run of 32nds that overruns the bar. By default DuET finds
 fast one-direction runs on one scale in the performance and writes each as a wavy line from its first note to its last,
 at their performed positions. Notes struck during the line go back to where they were played, in the second voice.
 
 Each detected run is a `glissando` item in `review.json`, because a wrong detection takes notes off the page.
+`--no-auto-glissandi` turns this off.
 `--glissandi runs.json` names the runs instead: `{"runs": [{"hand": "right", "scale": "white", "notes": [{"seconds":
 1.5, "pitch": 93}, ...]}]}`, where `hand` and `scale` are optional. A named run wins over a detected one at the same
-time. Without either switch the output is unchanged.
+time.
 
 All score times remain in quarter notes, including 3/8 (3/2 quarters), 4/8 (2),
 and 9/8 (9/2). Simple eighth meters use an eighth-note grid unit; compound eighth
