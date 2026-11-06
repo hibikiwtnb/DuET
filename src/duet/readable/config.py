@@ -1,7 +1,7 @@
 """Runtime engraving controls, including independent automatic decisions and
 key/spelling costs. Units: "beat" means one
 notated beat (a quarter note in n/4 meters); "s" means seconds of performance."""
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 import math
 
 
@@ -122,7 +122,14 @@ class Config:
     a_tempo_ratio: float = 0.96
 
 
+    # ---- glissandi --------------------------------------------------------------
+    glissandi: list = field(default_factory=list)   # [{"notes": [[seconds, pitch], ...], "hand", "scale"}], see gliss.py
+
     def __post_init__(self):
+        for run in self.glissandi:
+            if not isinstance(run, dict) or not isinstance(run.get('notes'), (list, tuple)) \
+                    or any(not isinstance(item, (list, tuple)) or len(item) != 2 for item in run['notes']):
+                raise ValueError('glissandi must list runs with notes as [seconds, pitch] pairs')
         for f in fields(self):
             value = getattr(self, f.name)
             if f.type is bool:

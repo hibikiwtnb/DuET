@@ -51,6 +51,9 @@ def main():
     for name in ('keys', 'spelling', 'runs'):
         parser.add_argument('--auto-' + name, action=argparse.BooleanOptionalAction,
                             default=None, help="Override automatic " + name + " (default: enabled)")
+    parser.add_argument('--glissandi', type=Path,
+                        help='JSON file of runs to write as glissando lines: {"runs": [{"hand": "right", '
+                             '"notes": [{"seconds": 1.5, "pitch": 93}, ...]}]}')
     parser.add_argument('--key-switch', type=float, help="Penalty for a key-signature change")
     parser.add_argument('--key-model-cost', type=float, help="Penalty per note for disagreeing with model keys")
     args = parser.parse_args()
@@ -63,8 +66,12 @@ def main():
             value = getattr(args, name)
             if value is not None:
                 engraving[name] = value
+        if args.glissandi:
+            runs = json.loads(args.glissandi.read_text(encoding='utf-8'))['runs']
+            engraving['glissandi'] = [dict(hand=run.get('hand'), scale=run.get('scale'), notes=[[note['seconds'], note['pitch']]
+                                                                        for note in run['notes']]) for run in runs]
         engraving = Config.from_dict(engraving)
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, KeyError, TypeError) as exc:
         parser.error(str(exc))
     if args.threads < 1:
         parser.error("--threads must be positive")

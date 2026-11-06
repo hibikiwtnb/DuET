@@ -7,6 +7,7 @@ from fractions import Fraction as F
 
 import numpy as np
 
+from . import gliss
 from . import review as review_mod
 from .config import Config
 from .context import Ctx, Bars
@@ -205,6 +206,7 @@ def _run(inp, out_dir, title=None, cfg=None):
     # bring two notes of one pitch together
     sanitize(notes, ctx)
     notes = dedupe(notes, ctx)
+    gliss.apply(notes, cfg.glissandi, ctx)
     last_on = max(n['on'] for n in notes)
     if model_bars is None:
         ctx.nbars = int(last_on // B) + 1
@@ -235,6 +237,7 @@ def _run(inp, out_dir, title=None, cfg=None):
 
     notes, stats = playability(notes, ctx)
     stats['cross_over'] = cross_over(notes, ctx)
+    gliss.finish(notes)
     log(f"playability: {stats}")
     layers = {st: assign(notes, st, ctx) for st in (0, 1)}
 
