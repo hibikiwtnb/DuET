@@ -1,4 +1,5 @@
 """Named glissandi become one wavy line from their performed positions; without any, nothing changes."""
+import json
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
@@ -39,11 +40,13 @@ def fixture():
     return data, score, frames, named
 
 
-def engrave(glissandi=()):
+def engrave(glissandi=(), auto=False):
     data, score, frames, _ = fixture()
-    cfg = Config(auto_keys=False, auto_spelling=False, auto_runs=False, glissandi=list(glissandi))
+    cfg = Config(auto_keys=False, auto_spelling=False, auto_runs=False, glissandi=list(glissandi), auto_glissandi=auto)
     with tempfile.TemporaryDirectory() as folder:
         path, summary = pipeline.run(Inputs.from_prediction(data, score, frames), folder, cfg=cfg)
+        review = Path(folder) / 'score.review.json'
+        engrave.review = json.loads(review.read_text(encoding='utf-8')) if review.exists() else None
         return Path(path).read_text(encoding='utf-8'), summary
 
 
@@ -105,6 +108,84 @@ class GlissNotationTests(unittest.TestCase):
         self.assertEqual(gliss.snap(1.125), F(5, 4))
         self.assertEqual(gliss.snap(1.124), F(1))
         self.assertEqual(gliss.snap(2.74), F(11, 4))
+
+
+def perf_of(notes):
+    """(onset, offset, pitch, velocity) rows from (seconds, pitch) pairs."""
+    return [(seconds, seconds + 0.5, pitch, 70) for seconds, pitch in notes]
+
+
+def run_at(start, pitches, step=0.05):
+    return [(start + index * step, pitch) for index, pitch in enumerate(pitches)]
+
+
+def found(notes, beat=0.5):
+    return gliss.find(perf_of(notes), beat)
+
+
+class GlissDetectionTests(unittest.TestCase):
+    def test_white_black_and_major_scale_runs(self):
+        black = [90, 87, 85, 82, 80, 78, 75, 73, 70, 68, 66]
+        e_major = [88, 87, 85, 83, 81, 80, 78, 76, 75, 73, 71]
+        for pitches, scale in ((RUN, 'white'), (black, 'black'), (e_major, 'E major')):
+            with self.subTest(scale=scale):
+                runs, _ = found(run_at(0, pitches))
+                self.assertEqual([run['scale'] for run in runs], [scale])
+                self.assertEqual([p for _, p in runs[0]['notes']], pitches)
+
+    def test_played_scale_short_figure_and_low_chords_are_not_runs(self):
+        for notes in (run_at(0, RUN, 0.12), run_at(0, RUN[:5]), run_at(0, [55, 59, 60, 62, 64, 65, 67, 69])):
+            self.assertEqual(found(notes)[0], [])
+
+    def test_transcribed_end_out_of_order_is_one_run(self):
+        # Onsets of a real run in beats at 162 BPM: the end comes out late and out of order.
+        head = [1.19, 1.22, 1.28, 1.32, 1.39, 1.46, 1.53, 1.64, 1.72, 1.81, 1.86, 1.96, 2.08, 2.14]
+        pitches = [93, 91, 89, 88, 86, 84, 83, 81, 79, 77, 76, 74, 72, 71]
+        tail = [(2.40, 64), (2.47, 67), (2.53, 60), (2.64, 65), (2.71, 62), (2.73, 59)]
+        beat = 60 / 162
+        notes = [(at * beat, pitch) for at, pitch in list(zip(head, pitches)) + tail]
+        self.assertEqual(len(found(notes, beat)[0][0]['notes']), 20)
+
+    def test_chords_it_crosses_stay_out(self):
+        chord = [(0.25, 60), (0.25, 63), (0.25, 68)]
+        runs, _ = found(run_at(0, RUN) + chord)
+        self.assertEqual(sorted(p for _, p in runs[0]['notes']), sorted(RUN))
+
+    def test_chord_note_at_the_end_goes_to_the_chord(self):
+        pitches = RUN + [72]
+        end = (len(pitches) - 1) * 0.05
+        runs, _ = found(run_at(0, pitches) + [(end, 45), (end, 52)])
+        self.assertNotIn(72, [p for _, p in runs[0]['notes']])
+
+    def test_note_struck_before_the_run_reaches_it_stays_out(self):
+        holes = [(index * 0.05, p) for index, p in enumerate(RUN) if p != 76]
+        runs, _ = found(holes + [(5 * 0.05, 76)])
+        self.assertNotIn(76, [p for _, p in runs[0]['notes']])
+
+    def test_mostly_repeated_chords_are_rejected(self):
+        pitches = RUN[:10]
+        notes = run_at(0, pitches)
+        for index in range(1, 7):
+            at = index * 0.05
+            notes += [(at, 52), (at + 0.6, pitches[index]), (at + 0.6, 52)]
+        runs, rejected = found(notes)
+        self.assertEqual((runs, rejected), ([], 1))
+
+    def test_off_by_default_and_the_output_is_unchanged(self):
+        self.assertFalse(Config().auto_glissandi)
+        self.assertEqual(engrave()[0], engrave(auto=False)[0])
+        self.assertNotIn('glissando', engrave()[0])
+
+    def test_auto_writes_a_line_and_asks_in_the_review(self):
+        xml, _ = engrave(auto=True)
+        self.assertEqual([g.get('type') for g in ET.fromstring(xml).iter('glissando')], ['start', 'stop'])
+        items = [item for item in engrave.review['items'] if item['kind'] == 'glissando']
+        self.assertEqual(len(items), 1)
+
+    def test_a_named_run_wins_over_a_detected_one(self):
+        xml, _ = engrave([fixture()[3]], auto=True)
+        self.assertEqual(len(list(ET.fromstring(xml).iter('glissando'))), 2)
+        self.assertEqual([item for item in engrave.review['items'] if item['kind'] == 'glissando'], [])
 
 
 if __name__ == '__main__':

@@ -206,7 +206,12 @@ def _run(inp, out_dir, title=None, cfg=None):
     # bring two notes of one pitch together
     sanitize(notes, ctx)
     notes = dedupe(notes, ctx)
-    gliss.apply(notes, cfg.glissandi, ctx)
+    runs = list(cfg.glissandi)
+    if cfg.auto_glissandi:
+        found, rejected = gliss.find(inp.perf, float(np.median(np.diff(G))) if len(G) > 1 else 0.5)
+        runs += [run for run in found if not gliss.overlaps(run, cfg.glissandi)]
+        log(f"gliss: detected {len(found)} runs, rejected {rejected} as repeated chords")
+    gliss.apply(notes, runs, ctx)
     last_on = max(n['on'] for n in notes)
     if model_bars is None:
         ctx.nbars = int(last_on // B) + 1
@@ -225,6 +230,7 @@ def _run(inp, out_dir, title=None, cfg=None):
     ctx.keys = [keys_model[min(max(int(np.searchsorted(starts, old_pos(m), 'right')) - 1, 0), len(keys_model) - 1)]
                 for m in range(ctx.nbars)]
     rv = review_mod.Review(ctx)
+    gliss.review_items(rv, ctx)
     if cfg.auto_keys:
         review_mod.auto_keys(notes, ctx, rv, log)
     if cfg.auto_runs:
