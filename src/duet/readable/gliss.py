@@ -66,35 +66,12 @@ def _chains(notes, scale_of, min_notes, min_span, gap, mean_gap, disorder, cover
 
 
 def find(perf, cfg):
-    """Glissandi and fast major-scale runs in a performance, each as {notes: [[seconds, pitch], ...], scale}.
-
-    perf holds (onset, offset, pitch, velocity). A glissando stays on one key colour (white or black keys). A fast run on
-    a major scale is only reported (scale_runs): fingered scales that fast are far more common than scale glissandi.
-    """
-    notes = [dict(t=float(row[0]), pitch=int(row[2])) for row in perf]
-    colour = lambda note: WHITE_KEYS if note['pitch'] % 12 in WHITE_KEYS else BLACK_KEYS
-    runs, taken = [], set()
-    for chain in _chains(notes, colour, cfg.gliss_min_notes, cfg.gliss_min_span, cfg.gliss_gap, cfg.gliss_mean_gap,
-                         cfg.gliss_disorder, cfg.gliss_coverage):
-        taken.update(id(note) for note in chain)
-        runs.append(dict(notes=[[n['t'], n['pitch']] for n in chain],
-                         scale='white' if chain[0]['pitch'] % 12 in WHITE_KEYS else 'black'))
-    found = []                                      # runs on every major scale; the scale playing most notes wins
-    for root in range(1, 12):                       # C major is the white keys
-        scale = tuple(sorted((root + step) % 12 for step in WHITE_KEYS))
-        for chain in _chains([n for n in notes if id(n) not in taken], lambda note: scale, cfg.scale_run_min_notes,
-                             cfg.scale_run_min_span, cfg.gliss_gap, cfg.scale_run_mean_gap, cfg.gliss_disorder,
-                             cfg.gliss_coverage):
-            if not (all(n['pitch'] % 12 in WHITE_KEYS for n in chain) or all(n['pitch'] % 12 in BLACK_KEYS for n in chain)):
-                found.append((root, chain))
-    scale_runs = []
-    for root, chain in sorted(found, key=lambda item: -len(item[1])):
-        if any(id(note) in taken for note in chain):
-            continue
-        taken.update(id(note) for note in chain)
-        scale_runs.append(dict(notes=[[n['t'], n['pitch']] for n in chain], scale=NOTE_NAMES[root] + ' major'))
-    runs.sort(key=lambda run: run['notes'][0][0])
-    scale_runs.sort(key=lambda run: run['notes'][0][0])
+    """Local branch: runs from gliss_lines. White- or black-key runs become glissando lines; major-scale runs are
+    review items only."""
+    from . import gliss_lines
+    lines, _ = gliss_lines.find(perf, 0.5)
+    runs = [run for run in lines if run['scale'] in ('white', 'black')]
+    scale_runs = [run for run in lines if run['scale'] not in ('white', 'black')]
     return runs, scale_runs
 
 
