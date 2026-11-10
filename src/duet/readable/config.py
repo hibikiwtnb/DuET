@@ -102,6 +102,7 @@ class Config:
     auto_spelling: bool = True         # notes outside the key spelled from harmony and line (spellfit)
     auto_runs: bool = True             # brushed notes in runs as grace notes, one-place overlaps cut
     auto_gliss: bool = True            # glissandi written as a glissando line between their two ends
+    midi_grid: bool = True             # input MIDI already on a beat grid: keep notes on its bar lines (skipped when it is not)
     auto_chords: bool = True           # notes played together but written apart joined into one chord
     gliss_min_notes: int = 8           # notes of one key colour in a row, one direction
     gliss_min_span: int = 12           # semitones (an octave)

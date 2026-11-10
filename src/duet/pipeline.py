@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,7 @@ from .export import write_listening_midi
 from .engraving import predict_engraving_frames, write_readable_musicxml
 from .features import build_window
 from .midi import read_performance_midi
+from . import midigrid
 from .model import DuETModel
 
 
@@ -159,6 +161,10 @@ class DuET:
             report["notes_outside_roll_range"] = int(
                 ((pitch < 21) | (pitch > 108)).sum()
             )
+            grid = None
+            if engraving_config.midi_grid:
+                grid, why = midigrid.load(midi, on)
+                report["midi_grid"] = "used" if grid else why
             records = []
             committed = {}
             for index, start in enumerate(
@@ -204,6 +210,8 @@ class DuET:
                 )
                 if len(pred) - len(prefix) != len(owned):
                     raise ValueError("Generated note count mismatch.")
+                if grid:
+                    pred[len(prefix):] = midigrid.correct(grid, self.model.codec, owned, pred[len(prefix):], anchor)
                 for i, row in zip(owned, pred[len(prefix) :]):
                     if i in committed:
                         raise ValueError("Repeated input note ownership.")
@@ -229,6 +237,11 @@ class DuET:
                     progress(detail)
             if set(committed) != set(range(len(on))):
                 raise ValueError("Full-piece input coverage is incomplete.")
+            if grid:
+                report["midi_grid_moved_notes"] = grid["moved"]
+                # the bar lines are the MIDI's: no re-counting of beats from the frames
+                engraving_config = replace(engraving_config, grid_count_fix=False, half_bar_shift=False,
+                                           rewind_min=1e9)
             score, stats = assemble_records(self.model.codec, records)
             report.update(stats, input_notes=len(on), input_coverage=1.0)
             np.savez_compressed(
