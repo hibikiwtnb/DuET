@@ -43,7 +43,7 @@ def load(path, onsets):
     secs = np.concatenate(([0.0], np.cumsum(np.diff(ticks) * rates[:-1])))
     on = np.asarray(onsets, float)
     seg = np.searchsorted(secs, on, side='right') - 1
-    beats = (ticks[seg] + (on - secs[seg]) / rates[seg]) / mid.ticks_per_beat * (4 / den)
+    beats = (ticks[seg] + (on - secs[seg]) / rates[seg]) / mid.ticks_per_beat   # quarter notes, like BEAT
     eighths = beats * 2
     median = float(np.median(np.abs(eighths - np.round(eighths))))
     if median > ALIGNED_MEDIAN:
