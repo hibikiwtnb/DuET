@@ -65,13 +65,30 @@ def _chains(notes, scale_of, min_notes, min_span, gap, mean_gap, disorder, cover
     return out
 
 
+# A major-scale run this fast is a glissando whatever its key colours (piano-midi-cleanup's
+# FAST_SCALE_SECONDS_PER_DEGREE): fingered scales run at about 65 ms a note or slower.
+FAST_SCALE_SECONDS_PER_DEGREE = 0.04
+
+
+def _fast_scale_run(run, scales):
+    """Is this major-scale run faster per scale degree than any fingered scale?"""
+    from . import gliss_lines
+    scale = scales[run['scale']]
+    degrees = [gliss_lines._degree(pitch, scale) for _, pitch in run['notes']]
+    span = max(degrees) - min(degrees)
+    times = [seconds for seconds, _ in run['notes']]
+    return span > 0 and (max(times) - min(times)) / span <= FAST_SCALE_SECONDS_PER_DEGREE
+
+
 def find(perf, cfg):
-    """Local branch: runs from gliss_lines. White- or black-key runs become glissando lines; major-scale runs are
-    review items only."""
+    """Local branch: runs from gliss_lines. White- or black-key runs, and major-scale runs too fast to finger, become
+    glissando lines; slower major-scale runs are review items only."""
     from . import gliss_lines
     lines, _ = gliss_lines.find(perf, 0.5)
-    runs = [run for run in lines if run['scale'] in ('white', 'black')]
-    scale_runs = [run for run in lines if run['scale'] not in ('white', 'black')]
+    scales = dict(gliss_lines._scales())
+    is_line = lambda run: run['scale'] in ('white', 'black') or _fast_scale_run(run, scales)
+    runs = [run for run in lines if is_line(run)]
+    scale_runs = [run for run in lines if not is_line(run)]
     return runs, scale_runs
 
 
