@@ -175,20 +175,23 @@ def staff_events(plan, staff):
 
 def ottava_runs(plan, staff, lo_min, need_max, ctx):
     evs = sorted(staff_events(plan, staff), key=lambda e: e['on'])
+    # A run ends at its last event's end, but no later than the next event of the staff that is not in it: a note
+    # of another voice starting under a held high note (春日影 m40: B3 under a glissando's start) stays at pitch.
     runs, cur = [], []
     for e in evs:
         ps = [n['pitch'] for n in e['notes']]
         if min(ps) >= lo_min and plan.clefs[staff][ctx.bar_of(e['on'])] == 'G':
             cur.append(e)
         else:
-            if cur: runs.append(cur)
+            if cur: runs.append((cur, e['on']))
             cur = []
-    if cur: runs.append(cur)
+    if cur: runs.append((cur, None))
     out = []
-    for r in runs:
+    for r, limit in runs:
         tops = [max(n['pitch'] for n in e['notes']) for e in r]
         if sum(t >= need_max for t in tops) >= 2 or max(tops) >= need_max + 3:
-            out.append((r[0]['on'], max(e['end'] for e in r)))
+            end = max(e['end'] for e in r)
+            out.append((r[0]['on'], end if limit is None else min(end, max(limit, r[-1]['on'] + F(1, 100)))))
     return [r for r in (outside_tuplets(plan, staff, a, b) for a, b in out) if r[0] < r[1]]
 
 
