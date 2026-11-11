@@ -113,7 +113,8 @@ def _match(notes, run):
 def apply(notes, runs, ctx, scale_runs=()):
     """Keep the first and last note of each run with the line between them and drop the rest. Sets ctx.gliss_spans.
 
-    The first note keeps the model's position (on the nearest 16th when off that grid) and lasts until the last note,
+    The first note keeps the model's position (on the nearest 16th when off that grid, and never later than where it
+    was played) and lasts until the last note,
     which goes on the 16th nearest to where it was played. Each end stays on its own staff, so the line can cross."""
     ctx.gliss_spans = []
     ctx.gliss_detected = []
@@ -128,6 +129,10 @@ def apply(notes, runs, ctx, scale_runs=()):
         found = [n for n in found if n is not None]
         first, last = found[0], found[-1]
         start = first['on'] if (first['on'] / POSITION_GRID).denominator == 1 else snap(first['on'])
+        # The model can place the first note of a fast run late (春日影 m122: a beat late, so the line shrank to a
+        # sixteenth); the run then starts on the 16th nearest to where it was played, as its end does.
+        if start > snap(first['x']):
+            start = snap(first['x'])
         end = snap(last['x'])
         if last_end is not None and start <= last_end:
             start = last_end + POSITION_GRID
@@ -137,6 +142,11 @@ def apply(notes, runs, ctx, scale_runs=()):
             ctx.log(f"gliss: run {number} end moved from {ctx.where(nearest)} to {ctx.where(end)}, before the next note")
         if end <= start:
             end = start + POSITION_GRID
+        # The start note lasts until the end note and the line leaves its last written piece, so a length that needs
+        # a tie (a quarter and a 16th, 春日影 m122) leaves only a 16th for the line. The start moves later to the
+        # longest single (dotted) note value that fits.
+        values = [POSITION_GRID * k for k in (16, 12, 8, 6, 4, 3, 2, 1)]
+        start = end - next(value for value in values if value <= end - start)
         last_end = end
         line = (number - 1) % 6 + 1
         first.update(on=start, dur=end - start)
