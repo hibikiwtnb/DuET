@@ -114,7 +114,7 @@ def apply(notes, runs, ctx, scale_runs=()):
     """Keep the first and last note of each run with the line between them and drop the rest. Sets ctx.gliss_spans.
 
     The first note keeps the model's position (on the nearest 16th when off that grid) and lasts until the last note,
-    which goes on the 16th nearest to where it was played. Both ends go on one staff (see below)."""
+    which goes on the 16th nearest to where it was played. Each end stays on its own staff, so the line can cross."""
     ctx.gliss_spans = []
     ctx.gliss_detected = []
     ctx.gliss_scale_runs = []
@@ -141,12 +141,8 @@ def apply(notes, runs, ctx, scale_runs=()):
         line = (number - 1) % 6 + 1
         first.update(on=start, dur=end - start)
         last.update(on=end, dur=min(max(END_NOTE, snap(last['dur'])), room) if room else max(END_NOTE, snap(last['dur'])))
-        # Both ends on one staff: MuseScore's MusicXML import drops a glissando whose ends sit on different staves.
-        # The staff is that of the end farther from middle C, where most of the run lies.
-        staff = first['staff'] if abs(first['pitch'] - 60) >= abs(last['pitch'] - 60) else last['staff']
         for note, kind in ((first, 'start'), (last, 'stop')):
-            note['staff'] = staff
-            note.update(grace=False, bass_grace=False, roll=False, gliss=kind, gliss_staff=staff,
+            note.update(grace=False, bass_grace=False, roll=False, gliss=kind, gliss_staff=note['staff'],
                         gliss_scale=run['scale'], gliss_number=line)
         inner = {id(n) for n in found[1:-1]}
         notes[:] = [n for n in notes if id(n) not in inner]
